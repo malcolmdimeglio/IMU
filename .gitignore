@@ -1,0 +1,11 @@
+# Object files
+*.o
+*.d
+*.elf
+build/
+
+# Executables
+*.hex
+
+# Project files
+*sublime*
