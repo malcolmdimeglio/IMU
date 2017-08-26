@@ -15,7 +15,7 @@
 
 
 #include "WProgram.h"
-#include "Wire.h"
+#include "TwoWire.h"
 #include "MPU6050.h"
 #include "HMC5883L.h"
 

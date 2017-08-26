@@ -46,7 +46,7 @@ bool MPU6050::init(void)
     
     Serial.print("Reset device : ");
     err = Twi.config(ADRESS_MPU6050, MPU6050_RA_PWR_MGMT_1, 0x80);
-    t_err = er
+    t_err = err;
     config_status(err);
     delay(300);
     
