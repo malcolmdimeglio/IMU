@@ -36,7 +36,7 @@
 #define MPU6050_RA_YG_OFFS_USR_L        0x16
 #define MPU6050_RA_ZG_OFFS_USR_H        0x17 //[15:0] ZG_OFFS_USR
 #define MPU6050_RA_ZG_OFFS_USR_L        0x18
-#define MPU6050_RA_SMPRT_DIV            0x19
+#define MPU6050_RA_SMPLRT_DIV           0x19
 #define MPU6050_RA_CONFIG               0x1A
 #define MPU6050_RA_GYRO_CONFIG          0x1B
 #define MPU6050_RA_ACCEL_CONFIG         0x1C
@@ -133,28 +133,26 @@
 class MPU6050
 {
 private:
+    float Axyz_raw[3], Gxyz_raw[3], Axyz[3], Gxyz[3];
+    float accelero_sensitivity, gyro_sensitivity;
+
     void config_status(int);
-    int16_t getAx_raw(void);
-    int16_t getAy_raw(void);
-    int16_t getAz_raw(void);
-    int16_t getGx_raw(void);
-    int16_t getGy_raw(void);
-    int16_t getGz_raw(void);
-    float getAcceleroScale(void);
-    float getGyroScale(void);
-    float getAx(void);
-    float getAy(void);
-    float getAz(void);
-    float getGx(void);
-    float getGy(void);
-    float getGz(void);
+    void getAxyz_raw(void);
+    void getGxyz_raw(void);
+    void getAcceleroScale(void);
+    void getGyroScale(void);
+    void getAxyz(void);
+    void getGxyz(void);
+    
     
 public:
-    double ThetaX, ThetaY;
+    double Roll, Pitch;
 
+    void updateAxyzGxyz(void);
     bool init(void);
-    void getThetaX(void);
-    void getThetaY(void);
+    void getRoll(void);
+    void getPitch(void);
+
     
     
 };

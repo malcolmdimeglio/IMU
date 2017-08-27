@@ -27,7 +27,7 @@ using namespace std;
 
 
 
-extern "C" int main(void) 
+extern "C" int main(int argc, char *argv[]) 
 {
 #ifdef USING_MAKEFILE
     
@@ -91,13 +91,16 @@ extern "C" int main(void)
     
     while (1)
     {
-        AcceleroGyro.getThetaX();
-        AcceleroGyro.getThetaY();
-        Compass.getThetaZ();
+        AcceleroGyro.updateAxyzGxyz();
+        AcceleroGyro.getPitch();
+        AcceleroGyro.getRoll();
 
-        ThetaX = AcceleroGyro.ThetaX; // PITCH
-        ThetaY = AcceleroGyro.ThetaY; // ROLL
-        ThetaZ = Compass.ThetaZ;  // YAW
+        Compass.updateMxyz();
+        Compass.getYaw();
+
+        ThetaX = AcceleroGyro.Roll;
+        ThetaY = AcceleroGyro.Pitch;
+        ThetaZ = Compass.Yaw;  // YAW
 
         Serial.printf("%.4f %.4f %.4f\n",ThetaX, ThetaY, ThetaZ);
         // if (myFile.is_open()) {

@@ -67,7 +67,7 @@ bool MPU6050::init(void)
     delay(300);
     
     Serial.print("Sample rate : ");
-    err = Twi.config(ADRESS_MPU6050, MPU6050_RA_SMPRT_DIV, 0x00);
+    err = Twi.config(ADRESS_MPU6050, MPU6050_RA_SMPLRT_DIV, 0x00);
     t_err += err;
 
     /*
@@ -150,6 +150,8 @@ bool MPU6050::init(void)
     config_status(err);
     delay(300);
     
+
+    // Not sure this is a usefull configuration to do.
     Serial.print("Reset Gyro & Accelero : ");
     err = Twi.config(ADRESS_MPU6050, MPU6050_RA_SIGNAL_PATH_RESET, 0x07);
     t_err += err;
@@ -167,6 +169,11 @@ bool MPU6050::init(void)
     {
         delay(700);
         Serial.println("\n   >>>>>   MPU6050 Configuration : SUCCESS   <<<<<\n");
+
+        // We want to initialize the scales once and for all
+        getGyroScale();
+        getAcceleroScale();
+
         delay(1500);
         return true;
     }       
@@ -175,102 +182,87 @@ bool MPU6050::init(void)
 /**
  * Read the raw acceleration value on X axis
  * 
- * @return  [int16_t]   RAW X axis Acceleration
  */
-int16_t MPU6050::getAx_raw(void)
+void MPU6050::getAxyz_raw(void)
 {
-    uint8_t AxH = Twi.readFrom(ADRESS_MPU6050, MPU6050_RA_ACCEL_XOUT_H,1);
-    uint8_t AxL = Twi.readFrom(ADRESS_MPU6050, MPU6050_RA_ACCEL_XOUT_L,1);
-    int16_t Ax_raw = (AxH << 8) + AxL;
-    if (Ax_raw >= 0x8000){
+    uint8_t AxH, AxL, AyH, AyL, AzH, AzL; 
+    int16_t Ax_raw, Ay_raw, Az_raw;
+    uint8_t* twi_read_value = NULL;
+
+    twi_read_value = Twi.readFrom(ADRESS_MPU6050, MPU6050_RA_ACCEL_XOUT_H, 6, twi_read_value);
+    if (twi_read_value == NULL)
+    {
+        printf("Couldn't allow memory, shuting down...");
+        exit(EXIT_FAILURE);
+    }
+
+    AxH = twi_read_value[0];
+    AxL = twi_read_value[1];
+    AyH = twi_read_value[2];
+    AyL = twi_read_value[3];
+    AzH = twi_read_value[4];
+    AzL = twi_read_value[5];
+
+    free (twi_read_value);
+    
+    Ax_raw = (AxH << 8) + AxL;
+    Ay_raw = (AyH << 8) + AyL;
+    Az_raw = (AzH << 8) + AzL;
+
+    // conversion for 2's complement
+    if (Ax_raw >= 32768)
         Ax_raw = -((65535 - Ax_raw) + 1);
-    }
-    return Ax_raw;
-}
-
-/**
- * Read the raw acceleration value on Y axis
- * 
- * @return  [int16_t]   RAW Y axis Acceleration
- */
-int16_t MPU6050::getAy_raw(void)
-{
-    uint8_t AyH = Twi.readFrom(ADRESS_MPU6050, MPU6050_RA_ACCEL_YOUT_H,1);
-    uint8_t AyL = Twi.readFrom(ADRESS_MPU6050, MPU6050_RA_ACCEL_YOUT_L,1);
-    int16_t Ay_raw = (AyH << 8) + AyL;
-    if (Ay_raw >= 0x8000)
-    {
-        Ay_raw = -((65535 - Ay_raw) + 1);
-    }
-    return Ay_raw;
-}
-
-/**
- * Read the raw acceleration value on Z axis
- * 
- * @return  [int16_t]   RAW Z axis Acceleration
- */
-int16_t MPU6050::getAz_raw(void)
-{
-    uint8_t AzH = Twi.readFrom(ADRESS_MPU6050, MPU6050_RA_ACCEL_ZOUT_H,1);
-    uint8_t AzL = Twi.readFrom(ADRESS_MPU6050, MPU6050_RA_ACCEL_ZOUT_L,1);
-    int16_t Az_raw = (AzH << 8) + AzL;
-    if (Az_raw >= 0x8000)
-    {
+    if (Ay_raw >= 32768)
+        Ay_raw = -((65535 - Ay_raw) + 1 );
+    if (Az_raw >= 32768)
         Az_raw = -((65535 - Az_raw) + 1);
-    }
-    return Az_raw;
+    
+    Axyz_raw[0] = Ax_raw;
+    Axyz_raw[1] = Ay_raw;
+    Axyz_raw[2] = Az_raw;
 }
 
 /**
  * Read the raw Gyro value on X axis
  * 
- * @return  [int16_t]   RAW X axis Gyro
  */
-int16_t MPU6050::getGx_raw(void)
+void MPU6050::getGxyz_raw(void)
 {
-    uint8_t GxH = Twi.readFrom(ADRESS_MPU6050, MPU6050_RA_GYRO_XOUT_H,1);
-    uint8_t GxL = Twi.readFrom(ADRESS_MPU6050, MPU6050_RA_GYRO_XOUT_L,1);
-    int16_t Gx_raw = (GxH << 8) + GxL;
-    if (Gx_raw >= 0x8000)
+    uint8_t GxH, GxL, GyH, GyL, GzH, GzL;
+    int16_t Gx_raw, Gy_raw, Gz_raw;
+    uint8_t* twi_read_value = NULL;
+
+    twi_read_value = Twi.readFrom(ADRESS_MPU6050, MPU6050_RA_GYRO_XOUT_H, 6, twi_read_value);
+    if (twi_read_value == NULL)
     {
+        printf("Couldn't allow memory, shuting down...");
+        exit(EXIT_FAILURE);
+    }
+
+    GxH = twi_read_value[0];
+    GxL = twi_read_value[1];
+    GyH = twi_read_value[2];
+    GyL = twi_read_value[3];
+    GzH = twi_read_value[4];
+    GzL = twi_read_value[5];
+
+    free (twi_read_value);
+
+    Gx_raw = (GxH << 8) + GxL;
+    Gy_raw = (GyH << 8) + GyL;
+    Gz_raw = (GzH << 8) + GzL;
+
+    // conversion for 2's complement
+    if (Gx_raw >= 32768)
         Gx_raw = -((65535 - Gx_raw) + 1);
-    }
-    return Gx_raw;
-}
-
-/**
- * Read the raw Gyro value on Y axis
- * 
- * @return  [int16_t]   RAW Y axis Gyro
- */
-int16_t MPU6050::getGy_raw(void)
-{
-    uint8_t GyH = Twi.readFrom(ADRESS_MPU6050, MPU6050_RA_GYRO_YOUT_H,1);
-    uint8_t GyL = Twi.readFrom(ADRESS_MPU6050, MPU6050_RA_GYRO_YOUT_L,1);
-    int16_t Gy_raw = (GyH << 8) + GyL;
-    if (Gy_raw >= 0x8000)
-    {
+    if (Gy_raw >= 32768)
         Gy_raw = -((65535 - Gy_raw) + 1);
-    }
-    return Gy_raw;
-}
-
-/**
- * Read the raw Gyro value on Z axis
- * 
- * @return  [int16_t]   RAW Z axis Gyro
- */
-int16_t MPU6050::getGz_raw(void)
-{
-    uint8_t GzH = Twi.readFrom(ADRESS_MPU6050, MPU6050_RA_GYRO_ZOUT_H,1);
-    uint8_t GzL = Twi.readFrom(ADRESS_MPU6050, MPU6050_RA_GYRO_ZOUT_L,1);
-    int16_t Gz_raw = (GzH << 8) + GzL;
-    if (Gz_raw >= 0x8000)
-    {
+    if (Gz_raw >= 32768)
         Gz_raw = -((65535 - Gz_raw) + 1);
-    }
-    return Gz_raw;
+
+    Gxyz_raw[0] = Gx_raw;
+    Gxyz_raw[1] = Gy_raw;
+    Gxyz_raw[2] = Gz_raw;
 }
 
 /**
@@ -278,20 +270,28 @@ int16_t MPU6050::getGz_raw(void)
  * 
  * @return  [float]   The apropriate scale
  */
-float MPU6050::getGyroScale(void)
+void MPU6050::getGyroScale(void)
 {
     uint8_t gyro_scale;
-    uint8_t mask_fs_sel = 0x18;  // 0b00011000;
-    
-    gyro_scale = Twi.readFrom(ADRESS_MPU6050, MPU6050_RA_GYRO_CONFIG,1);
+    uint8_t mask_fs_sel = 0b00011000;
+    uint8_t* twi_read_value = NULL;
+
+    twi_read_value = Twi.readFrom(ADRESS_MPU6050, MPU6050_RA_GYRO_CONFIG,1 , twi_read_value);
+    if (twi_read_value == NULL)
+    {
+        printf("Couldn't allow memory, shuting down...");
+        exit(EXIT_FAILURE);
+    }
+
+    gyro_scale = *twi_read_value;
     gyro_scale = (gyro_scale & mask_fs_sel) >> 3;
 
-    if (gyro_scale == 0) return 131.0000;
-    if (gyro_scale == 1) return 65.5000;
-    if (gyro_scale == 2) return 32.7500;
-    if (gyro_scale == 3) return 16.3750;
-    
-    else return -1;
+    if (gyro_scale == 0) gyro_sensitivity = 131.0000;
+    if (gyro_scale == 1) gyro_sensitivity = 65.5000;
+    if (gyro_scale == 2) gyro_sensitivity = 32.7500;
+    if (gyro_scale == 3) gyro_sensitivity = 16.3750;
+
+    free (twi_read_value);
 }
 
 /**
@@ -299,154 +299,93 @@ float MPU6050::getGyroScale(void)
  * 
  * @return  [float]   The apropriate scale
  */
-float MPU6050::getAcceleroScale(void)
+void MPU6050::getAcceleroScale(void)
 {
-    uint8_t acelero_scale;
-    uint8_t mask_fs_sel = 0x18;  // 0b00011000;
-    
-    acelero_scale = Twi.readFrom(ADRESS_MPU6050, MPU6050_RA_ACCEL_CONFIG,1);
-    acelero_scale = (acelero_scale & mask_fs_sel) >> 3;
+    uint8_t accelero_scale;
+    uint8_t mask_fs_sel = 0b00011000;
+    uint8_t* twi_read_value = NULL;
 
-    if (acelero_scale == 0) return 16384.0000;
-    if (acelero_scale == 1) return 8192.0000;
-    if (acelero_scale == 2) return 4096.0000;
-    if (acelero_scale == 3) return 2048.0000;
-    
-    else return -1;
+    twi_read_value = Twi.readFrom(ADRESS_MPU6050, MPU6050_RA_ACCEL_CONFIG, 1, twi_read_value);
+    if (twi_read_value == NULL)
+    {
+        printf("Couldn't allow memory, shuting down...");
+        exit(EXIT_FAILURE);
+    }
+
+    accelero_scale = *twi_read_value;
+    accelero_scale = (accelero_scale & mask_fs_sel) >> 3;
+
+    if (accelero_scale == 0) accelero_sensitivity = 16384.0000;
+    if (accelero_scale == 1) accelero_sensitivity = 8192.0000;
+    if (accelero_scale == 2) accelero_sensitivity = 4096.0000;
+    if (accelero_scale == 3) accelero_sensitivity = 2048.0000;
+
+    free (twi_read_value);
 }
 
 /**
- * Converts the X axis Accelormeter raw value into usable data
+ * Converts the X, Y, Z axis Accelormeter raw value into usable data
  * 
- * @return  [float]   X axis Acceleration in G
  */
-float MPU6050::getAx(void)
+void MPU6050::getAxyz(void)
 {
-    int16_t Ax_raw;
-    float accelero_sensitivity, Ax;
-    
-    Ax_raw = getAx_raw();
-    accelero_sensitivity = getAcceleroScale();
-    Ax = Ax_raw / accelero_sensitivity;
-    return Ax;
+    Axyz[0] = Axyz_raw[0] / accelero_sensitivity;
+    Axyz[1] = Axyz_raw[1] / accelero_sensitivity;
+    Axyz[2] = Axyz_raw[2] / accelero_sensitivity;
 }
 
 /**
- * Converts the Y axis Accelormeter raw value into usable data
+ * Converts the X, Y, Z axis Gyroscope raw value into usable data
  * 
- * @return  [float]   Y axis Acceleration in G
  */
-float MPU6050::getAy(void)
+void MPU6050::getGxyz(void)
 {
-    int16_t Ay_raw;
-    float accelero_sensitivity, Ay;
-    
-    Ay_raw = getAy_raw();
-    accelero_sensitivity = getAcceleroScale();
-    Ay = Ay_raw / accelero_sensitivity;
-    return Ay;
+    Gxyz[0] = Gxyz_raw[0] / gyro_sensitivity;
+    Gxyz[1] = Gxyz_raw[1] / gyro_sensitivity;
+    Gxyz[2] = Gxyz_raw[2] / gyro_sensitivity;
 }
 
-/**
- * Converts the Z axis Accelormeter raw value into usable data
- * 
- * @return  [float]   Z axis Acceleration in G
- */
-float MPU6050::getAz(void)
+void MPU6050::updateAxyzGxyz(void)
 {
-    int16_t Az_raw;
-    float accelero_sensitivity, Az;
-    
-    Az_raw = getAz_raw();
-    accelero_sensitivity = getAcceleroScale();
-    Az = Az_raw / accelero_sensitivity;
-    return Az;
-}
+    getAxyz_raw();
+    getGxyz_raw();
 
-/**
- * Converts the X axis Gyroscope raw value into usable data
- * 
- * @return  [float]   X axis Rotation in °/s
- */
-float MPU6050::getGx(void)
-{
-    int16_t Gx_raw;
-    float gyro_sensitivity, Gx;
-    
-    Gx_raw = getGx_raw();
-    gyro_sensitivity = getGyroScale();
-    Gx = Gx_raw / gyro_sensitivity;
-    return Gx;
-}
-
-/**
- * Converts the X axis Gyroscope raw value into usable data
- * 
- * @return  [float]   Y axis Rotation in °/s
- */
-float MPU6050::getGy(void)
-{
-    int16_t Gy_raw;
-    float gyro_sensitivity, Gy;
-    
-    Gy_raw = getGy_raw();
-    gyro_sensitivity = getGyroScale();
-    Gy = Gy_raw / gyro_sensitivity;
-    return Gy;
-}
-
-/**
- * Converts the X axis Gyroscope raw value into usable data
- * 
- * @return  [float]   Z axis Rotation in °/s
- */
-float MPU6050::getGz(void)
-{
-    int16_t Gz_raw;
-    float gyro_sensitivity, Gz;
-    
-    Gz_raw = getGz_raw();
-    gyro_sensitivity = getGyroScale();
-    Gz = Gz_raw / gyro_sensitivity;
-    return Gz;
+    getAxyz();
+    getGxyz();
 }
 
 /**
  *  Uses the Acceleration data to calculate the Roll value
  *  ROLL : [-180° : 180°]
  * 
- * @return  [double]   Roll in degrees
  */
-void MPU6050::getThetaY(void)
+void MPU6050::getRoll(void)
 {
-    float Ax, Az;
+    float Ay, Az;
 
-    Ax = getAx();
-    Az = getAz();
+    Ay = Axyz[1];
+    Az = Axyz[2];
     
-    ThetaY = (atan2(-Ax , Az)) * RAD_TO_DEG; // DEG_TO_RAD defined in wiring.h
-    
+    Roll = atan2( Ay , Az ) * RAD_TO_DEG;
+
 }
 
 /**
  *  Uses the Gyro data to calculate the Pitch value
  *  PITCH : [-90° : 90°]
  * 
- * @return  [double]   Pitch in degrees
  */
-void MPU6050::getThetaX(void)
+void MPU6050::getPitch(void)
 {
-    float Ax, Ay, Az, r;
-    
-    Ax = getAx();
-    Ay = getAy();
-    Az = getAz();
-    r = sqrt(Ax*Ax + Az*Az);
+    float Ax, Ay, Az;
 
-    ThetaX = (atan2(Ay , r)) * RAD_TO_DEG;
+    Ax = Axyz[0];
+    Ay = Axyz[1];
+    Az = Axyz[2];
+
+    Pitch = atan2( Ax , sqrt (pow(Ay,2) + pow (Az,2)) ) * RAD_TO_DEG;
     
 }
-
 
 MPU6050 AcceleroGyro;
 

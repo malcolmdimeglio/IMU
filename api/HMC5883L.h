@@ -9,8 +9,9 @@
 #ifndef ____HMC5883L__
 #define ____HMC5883L__
 
-#define ADRESS_HMC5883L             0x1E
+#include <math.h>
 
+#define ADRESS_HMC5883L             0x1E
 
 #define HMC5883L_RA_CONF_REG_A      0x00
 #define HMC5883L_RA_CONF_REG_B      0x01
@@ -31,33 +32,39 @@
  * Declinaztion is  the 'Error' of the magnetic field in current location.
  * (EAST is positive, WEST is negative)
  *
- * Toulon : 1°26'EAST = 1.4333°  
- */
+ * Toulon : 1°26'EAST = 1.4333°
+ * Paris : 0°33'EAST =  1,55°
+ */ 
 #define DECLINATION_TOULON_FR       1.4333
+#define DECLINATION_PARIS_FR        1.55
 
+#define DECLINATION DECLINATION_PARIS_FR
 
 class HMC5883L
 {
     
 private:
-    float Xoff, Yoff, Zoff;
+    float Xoff, Yoff, Zoff, magneto_sensitivity;
     int16_t Mxyz_raw[3];
     float Mxyz[3];
-    
+
+    const float declination = DECLINATION * DEG_TO_RAD;
+
     void config_status(int);
     void getMxyz_raw (void);
-    float getMagnetoScale(void);
+    void getMagnetoScale(void);
+    void getMxyz(void);
     int16_t getOutputRateDelay(void);
     
     
     
 public:
-    double ThetaZ;
+    double Yaw;
     
     bool init(void);
     void calibrate(void);
-    void getMxyz(void);
-    void getThetaZ(void);
+    void updateMxyz(void);
+    void getYaw(void);
     
 
 };

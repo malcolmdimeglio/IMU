@@ -143,6 +143,7 @@ bool HMC5883L::init(void)
     {
         delay(700);
         Serial.println("\n   >>>>>   HMC5883L Configuration : SUCCESS   <<<<<\n");
+        getMagnetoScale();
         delay(1500);
         return true;
     }
@@ -153,24 +154,33 @@ bool HMC5883L::init(void)
  * 
  * @return  [float]   The apropriate scale
  */
-float HMC5883L::getMagnetoScale(void)
+void HMC5883L::getMagnetoScale(void)
 {
     uint8_t gain;
-    uint8_t mask = 0xE0; // 0b11100000
-    gain = Twi.readFrom(ADRESS_HMC5883L, HMC5883L_RA_CONF_REG_B, 1);
+    uint8_t mask = 0b11100000;
+    uint8_t* twi_read_value = NULL;
+
+    twi_read_value = Twi.readFrom(ADRESS_HMC5883L, HMC5883L_RA_CONF_REG_B, 1, twi_read_value);
+    if (twi_read_value == NULL)
+    {
+        printf("Couldn't allow memory, shuting down...");
+        exit(EXIT_FAILURE);
+    }
+
+    gain = *twi_read_value;
     gain = (gain & mask) >> 5;
     
+    free(twi_read_value);
+
+    if (gain == 0) magneto_sensitivity = 0.73;
+    if (gain == 1) magneto_sensitivity = 0.92;
+    if (gain == 2) magneto_sensitivity = 1.22;
+    if (gain == 3) magneto_sensitivity = 1.52;
+    if (gain == 4) magneto_sensitivity = 2.27;
+    if (gain == 5) magneto_sensitivity = 2.56;
+    if (gain == 6) magneto_sensitivity = 3.03;
+    if (gain == 7) magneto_sensitivity = 4.35;
     
-    if (gain == 0) return 0.73;
-    if (gain == 1) return 0.92;
-    if (gain == 2) return 1.22;
-    if (gain == 3) return 1.52;
-    if (gain == 4) return 2.27;
-    if (gain == 5) return 2.56;
-    if (gain == 6) return 3.03;
-    if (gain == 7) return 4.35;
-    
-    else return -1;  
 }
 
 /**
@@ -182,8 +192,19 @@ int16_t HMC5883L::getOutputRateDelay(void)
 {
     uint8_t rate;
     uint8_t mask = 0x1C; // 0b00011100
-    rate = Twi.readFrom(ADRESS_HMC5883L, HMC5883L_RA_CONF_REG_A, 1);
+    uint8_t* twi_read_value = NULL;
+
+    twi_read_value = Twi.readFrom(ADRESS_HMC5883L, HMC5883L_RA_CONF_REG_A, 1, twi_read_value);
+    if (twi_read_value == NULL)
+    {
+        printf("Couldn't allow memory, shuting down...");
+        exit(EXIT_FAILURE);
+    }
+
+    rate = *twi_read_value;
     rate = (rate & mask) >> 2;
+
+    free(twi_read_value);
     
     if (rate == 0) return 1334;     // 000 = 0.75Hz // delay in ms to wait between each sample
     if (rate == 1) return 667;      // 001 = 1.5Hz
@@ -195,83 +216,6 @@ int16_t HMC5883L::getOutputRateDelay(void)
     
     else return -1;
 }
-
-/**
- *  Reads the raw magnetic field value sent by the sensor
- */
-void HMC5883L::getMxyz_raw (void)
-{
-    
-    uint8_t MxH, MxL, MyH, MyL, MzH, MzL;
-    uint16_t ms;
-    int16_t Mx_raw, My_raw, Mz_raw;
-    
-    // for the next 4 lines try : 
-    // Twi.readFrom(ADRESS_HMC5883L, HMC5883L_RA_XOUT_H, 6);
-    Twi.beginTransmission(ADRESS_HMC5883L);
-    Twi.write(HMC5883L_RA_XOUT_H);
-    Twi.endTransmission();
-    Twi.requestFrom(ADRESS_HMC5883L,6); // Absolute need to read all three axes otherwise the magnetometer won't work... only god knows why...
-    
-    while (Twi.available() != 6) {} // while not 6 bytes to read, do nothing
-    
-    MxH = Twi.read();
-    MxL = Twi.read();
-    MzH = Twi.read();
-    MzL = Twi.read();
-    MyH = Twi.read();
-    MyL = Twi.read();
-    
-    
-    Mx_raw = (MxH << 8) + MxL;
-    My_raw = (MyH << 8) + MyL;
-    Mz_raw = (MzH << 8) + MzL;
-
-    
-    if (Mx_raw >= 0x8000) 
-    {
-        Mx_raw = -((65535 - Mx_raw) + 1);
-    }
-    
-    if (My_raw >= 0x8000) 
-    {
-        My_raw = -((65535 - My_raw) + 1);
-    }
-    
-    if (Mz_raw >= 0x8000) 
-    {
-        Mz_raw = -((65535 - Mz_raw) + 1);
-    }
-    
-   
-    Mxyz_raw[0] = Mx_raw;
-    Mxyz_raw[1] = My_raw;
-    Mxyz_raw[2] = Mz_raw;
-    
-    
-    ms = getOutputRateDelay();
-    delay(ms); // see init:Register A:Output rate + getOutputRateDelay()  
-}
-
-/**
- *  Converts the raw values into usable data
- */
-void HMC5883L::getMxyz(void)
-{
-    float Mx,My,Mz,scale;
-    
-    getMxyz_raw();
-    scale = getMagnetoScale();
-    
-    Mx = (Mxyz_raw[0] - Xoff) * scale;
-    My = (Mxyz_raw[1] - Yoff) * scale;
-    Mz = (Mxyz_raw[2] - Zoff) * scale;
-    
-    Mxyz[0] = Mx;
-    Mxyz[1] = My;
-    Mxyz[2] = Mz;   
-}
-
 
 /**
  *  Initialte a sensor calibration to get x,y,y offsets
@@ -298,14 +242,14 @@ void HMC5883L::calibrate(void)
             // DO NOTHING
             // get rid of the first values that might be really off
         }
-        if (Mxyz_raw[0] > Xmax) { Xmax = Mxyz_raw[0]; }
-        if (Mxyz_raw[0] < Xmin) { Xmin = Mxyz_raw[0]; }
+        if (Mxyz_raw[0] > Xmax) Xmax = Mxyz_raw[0];
+        if (Mxyz_raw[0] < Xmin) Xmin = Mxyz_raw[0];
 
-        if (Mxyz_raw[1] > Ymax) { Ymax = Mxyz_raw[1]; }
-        if (Mxyz_raw[1] < Ymin) { Ymin = Mxyz_raw[1]; }
+        if (Mxyz_raw[1] > Ymax) Ymax = Mxyz_raw[1];
+        if (Mxyz_raw[1] < Ymin) Ymin = Mxyz_raw[1];
 
-        if (Mxyz_raw[2] > Zmax) { Zmax = Mxyz_raw[2]; }
-        if (Mxyz_raw[2] < Zmin) { Zmin = Mxyz_raw[2]; }
+        if (Mxyz_raw[2] > Zmax) Zmax = Mxyz_raw[2];
+        if (Mxyz_raw[2] < Zmin) Zmin = Mxyz_raw[2];
         
     }
     
@@ -318,25 +262,90 @@ void HMC5883L::calibrate(void)
     delay(1000);
 }
 
+/**
+ *  Reads the raw magnetic field value sent by the sensor
+ */
+void HMC5883L::getMxyz_raw (void)
+{
+    
+    uint8_t MxH, MxL, MyH, MyL, MzH, MzL;
+    int16_t Mx_raw, My_raw, Mz_raw;
+    uint8_t* twi_read_value = NULL;
+
+    twi_read_value = Twi.readFrom(ADRESS_HMC5883L, HMC5883L_RA_XOUT_H, 6, twi_read_value);
+    if (twi_read_value == NULL)
+    {
+        printf("Couldn't allow memory, shuting down...");
+        exit(EXIT_FAILURE);
+    }
+ 
+    MxH = twi_read_value[0];
+    MxL = twi_read_value[1];
+    MzH = twi_read_value[2];
+    MzL = twi_read_value[3];
+    MyH = twi_read_value[4];
+    MyL = twi_read_value[5];
+    
+    
+    Mx_raw = (MxH << 8) + MxL;
+    My_raw = (MyH << 8) + MyL;
+    Mz_raw = (MzH << 8) + MzL;
+
+    
+    if (Mx_raw >= 0x8000) 
+        Mx_raw = -((65535 - Mx_raw) + 1);
+    if (My_raw >= 0x8000) 
+        My_raw = -((65535 - My_raw) + 1);
+    if (Mz_raw >= 0x8000) 
+        Mz_raw = -((65535 - Mz_raw) + 1);
+    
+   
+    Mxyz_raw[0] = Mx_raw;
+    Mxyz_raw[1] = My_raw;
+    Mxyz_raw[2] = Mz_raw;
+    
+    free(twi_read_value);
+    delay(getOutputRateDelay()); // see init:Register A:Output rate + getOutputRateDelay()  
+}
+
+/**
+ *  Converts the raw values into usable data
+ */
+void HMC5883L::getMxyz(void)
+{
+    float Mx,My,Mz;
+    
+    Mx = (Mxyz_raw[0] - Xoff) * magneto_sensitivity;
+    My = (Mxyz_raw[1] - Yoff) * magneto_sensitivity;
+    Mz = (Mxyz_raw[2] - Zoff) * magneto_sensitivity;
+    
+    Mxyz[0] = Mx;
+    Mxyz[1] = My;
+    Mxyz[2] = Mz;   
+}
+
+/**
+ *  Converts the raw values into usable data
+ */
+void HMC5883L::updateMxyz(void)
+{
+    getMxyz_raw();
+    getMxyz();
+}
 
 /**
  *  Uses the magnetic field data to calculate the Yaw value, takes declination into consideration
  * 
  * @return  [double]   Yaw in degrees
  */
-void HMC5883L::getThetaZ(void)
+void HMC5883L::getYaw(void)
 {
-    float declination, Zrot, x, y;
-
-    getMxyz();
+    float Zrot, x, y;
     
     x = Mxyz[0]; // x is scaled in function getMxyz
     y = Mxyz[1]; // y is scaled in function getMxyz
-    
-    declination = DECLINATION_TOULON_FR * DEG_TO_RAD;
 
-    Zrot = atan2(y,x);
-    Zrot -= declination; 
+    Zrot = atan2(y,x) - declination;
     
     // due to addition/substraction of the declination 
     if (Zrot < 0)
@@ -344,7 +353,7 @@ void HMC5883L::getThetaZ(void)
     if (Zrot > 2*PI)
         Zrot -= 2*PI;
     
-    ThetaZ = Zrot * RAD_TO_DEG;
+    Yaw = Zrot * RAD_TO_DEG;
 }
 
 
