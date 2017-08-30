@@ -333,28 +333,5 @@ void HMC5883L::updateMxyz(void)
     getMxyz();
 }
 
-/**
- *  Uses the magnetic field data to calculate the Yaw value, takes declination into consideration
- * 
- * @return  [double]   Yaw in degrees
- */
-void HMC5883L::getYaw(void)
-{
-    float Zrot, x, y;
-    
-    x = Mxyz[0]; // x is scaled in function getMxyz
-    y = Mxyz[1]; // y is scaled in function getMxyz
-
-    Zrot = atan2(y,x) - declination;
-    
-    // due to addition/substraction of the declination 
-    if (Zrot < 0)
-        Zrot += 2*PI;
-    if (Zrot > 2*PI)
-        Zrot -= 2*PI;
-    
-    Yaw = Zrot * RAD_TO_DEG;
-}
-
 
 HMC5883L Compass;

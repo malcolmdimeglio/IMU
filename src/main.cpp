@@ -18,10 +18,7 @@
 #include "TwoWire.h"
 #include "MPU6050.h"
 #include "HMC5883L.h"
-
-#define CALIBRATION_NEEDED 1
-
-
+#include "AHRS.h"
 
 using namespace std;
 
@@ -31,19 +28,7 @@ extern "C" int main(int argc, char *argv[])
 {
 #ifdef USING_MAKEFILE
     
-    bool init_success;
     float ThetaX, ThetaY, ThetaZ;
-
-    // string py_script_2D_path = "/Users/Malk/Desktop/Projet_Perso/Projet_3D/Python_Script/2D_plot_RealTime.py";
-    // string py_script_3D_path = "/Users/Malk/Desktop/Projet_Perso/Projet_3D/Python_Script/3D_plot_RealTime.py";
-    // string py_command = "python3";
-    // string py_command_2D = py_command + py_script_2D_path;
-    // string py_command_3D = py_command + py_script_3D_path;
-
-    //  // Open file and write data in it and launch python scripts
-    // ofstream myFile("/Users/Malk/Desktop/Projet_Perso/Projet_3D/Python_Script/IMU_data.txt", ios::out | ios::trunc);
-    // system(py_command_2D.c_str()); // Python script execution
-    // system(py_command_3D.c_str()); // Python script execution
 
     delay(3500);
     pinMode(12, OUTPUT); // Bleue
@@ -54,62 +39,23 @@ extern "C" int main(int argc, char *argv[])
 
     Serial.begin(115200);
     Twi.begin(); // (Here 400kHz speed) for further information check F_CPU/F_BUS in kinestis.h line 226
-    
-    Serial.println("+------------------------------------+");
-    Serial.println("|        MPU6050 Configuration       |");
-    Serial.println("+------------------------------------+\n");
-    delay(1000);
-    init_success = AcceleroGyro.init();
-    if (!init_success) 
-    {
-        digitalWriteFast(9, HIGH); // Red
-        Serial.println("AcceleroGyro Configuration FAIL");
-        return 0;
-    }
-    
-    Serial.println("+------------------------------------+");
-    Serial.println("|       HMC5883L Configuration       |");
-    Serial.println("+------------------------------------+\n");
-    delay(1000);
-    init_success = Compass.init();
-    
-    if (!init_success) 
-    {
-        digitalWriteFast(9, HIGH); // Red
-        Serial.println("Compass Configuration FAIL");
-        return 0;
-    }
 
-    #if CALIBRATION_NEEDED
-        digitalWriteFast(10, HIGH); // Orange
-        Compass.calibrate();
-        digitalWriteFast(10, LOW); // Orange
-    #endif
+    ahrs.initSensors();
 
     digitalWriteFast(12, LOW); // Bleue
     digitalWriteFast(11, HIGH); // Green
     
     while (1)
     {
-        AcceleroGyro.updateAxyzGxyz();
-        AcceleroGyro.getPitch();
-        AcceleroGyro.getRoll();
+        ahrs.readSensors();
+        ahrs.getAngles();
 
-        Compass.updateMxyz();
-        Compass.getYaw();
-
-        ThetaX = AcceleroGyro.Roll;
-        ThetaY = AcceleroGyro.Pitch;
-        ThetaZ = Compass.Yaw;  // YAW
+        ThetaX = ahrs.Roll;
+        ThetaY = ahrs.Pitch;
+        ThetaZ = ahrs.Yaw;
 
         Serial.printf("%.4f %.4f %.4f\n",ThetaX, ThetaY, ThetaZ);
-        // if (myFile.is_open()) {
-        //     myFile << ThetaX << " " << ThetaY << " " << ThetaZ << endl;
-        // }
-        // else
-        //     Serial.println("Can't open the file");
         
-        //fclose(myFile);
         while (!Serial){}
             // TODO : /!\ Dangerous, implement timeout to exit the loop
         

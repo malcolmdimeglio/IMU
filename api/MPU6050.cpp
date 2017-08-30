@@ -352,39 +352,7 @@ void MPU6050::updateAxyzGxyz(void)
 
     getAxyz();
     getGxyz();
-}
 
-/**
- *  Uses the Acceleration data to calculate the Roll value
- *  ROLL : [-180° : 180°]
- * 
- */
-void MPU6050::getRoll(void)
-{
-    float Ay, Az;
-
-    Ay = Axyz[1];
-    Az = Axyz[2];
-    
-    Roll = atan2( Ay , Az ) * RAD_TO_DEG;
-
-}
-
-/**
- *  Uses the Gyro data to calculate the Pitch value
- *  PITCH : [-90° : 90°]
- * 
- */
-void MPU6050::getPitch(void)
-{
-    float Ax, Ay, Az;
-
-    Ax = Axyz[0];
-    Ay = Axyz[1];
-    Az = Axyz[2];
-
-    Pitch = atan2( Ax , sqrt (pow(Ay,2) + pow (Az,2)) ) * RAD_TO_DEG;
-    
 }
 
 MPU6050 AcceleroGyro;

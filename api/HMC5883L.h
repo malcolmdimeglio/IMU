@@ -29,14 +29,16 @@
 
 /**
  * Local declination http://www.magnetic-declination.com/ 
- * Declinaztion is  the 'Error' of the magnetic field in current location.
- * (EAST is positive, WEST is negative)
- *
+ * Declination is  the 'Error' of the magnetic field in current location.
+ * EAST/WEST declination is not relative to GPS EAST/WEST position
+ * 
  * Toulon : 1°26'EAST = 1.4333°
  * Paris : 0°33'EAST =  1,55°
+ * Vancouver : 16° 19'EAST = 16,2666°
  */ 
 #define DECLINATION_TOULON_FR       1.4333
 #define DECLINATION_PARIS_FR        1.55
+#define DECLINATION_VANCOUVER_CA    16.2666
 
 #define DECLINATION DECLINATION_PARIS_FR
 
@@ -46,9 +48,6 @@ class HMC5883L
 private:
     float Xoff, Yoff, Zoff, magneto_sensitivity;
     int16_t Mxyz_raw[3];
-    float Mxyz[3];
-
-    const float declination = DECLINATION * DEG_TO_RAD;
 
     void config_status(int);
     void getMxyz_raw (void);
@@ -59,12 +58,12 @@ private:
     
     
 public:
-    double Yaw;
+    float Mxyz[3];
+    const float declination = DECLINATION * DEG_TO_RAD;
     
     bool init(void);
     void calibrate(void);
     void updateMxyz(void);
-    void getYaw(void);
     
 
 };

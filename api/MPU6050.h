@@ -133,7 +133,7 @@
 class MPU6050
 {
 private:
-    float Axyz_raw[3], Gxyz_raw[3], Axyz[3], Gxyz[3];
+    float Axyz_raw[3], Gxyz_raw[3];
     float accelero_sensitivity, gyro_sensitivity;
 
     void config_status(int);
@@ -146,12 +146,10 @@ private:
     
     
 public:
-    double Roll, Pitch;
+    float Axyz[3], Gxyz[3];
 
-    void updateAxyzGxyz(void);
     bool init(void);
-    void getRoll(void);
-    void getPitch(void);
+    void updateAxyzGxyz(void);
 
     
     
