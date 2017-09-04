@@ -6,9 +6,12 @@
 //
 //
 
+
 #include "WProgram.h"
 #include "TwoWire.h"
 #include "HMC5883L.h"
+
+#include <stdio.h>
 #include <math.h>
 
 
@@ -21,10 +24,13 @@
  *            2 = Adress not received
  *            3 = Data not received
  */
-void HMC5883L::config_status(int err)
+int8_t HMC5883L::com_status(uint8_t err)
 {
     if (err == 0)
+    {
         Serial.println("SUCCESS");
+        return 0;
+    }
     else if (err == 1)
         Serial.println("Data too long");
     else if (err == 2)
@@ -33,6 +39,8 @@ void HMC5883L::config_status(int err)
         Serial.println("recv data NACK");
     else
         Serial.println("other error");
+
+    return -1;
 }
 
 /**
@@ -42,58 +50,53 @@ void HMC5883L::config_status(int err)
  */
 bool HMC5883L::init(void)
 {
-    uint8_t err;
-    uint8_t t_err;
+    uint8_t err = 0;
 
     Serial.print("Register A configuration : ");
-    err = Twi.config(ADRESS_HMC5883L,HMC5883L_RA_CONF_REG_A,0x78);
-    t_err = err;
-    config_status(err);
-    delay(200);
-    
     /*
      CONF_REG_A :
      
-       Hex Rg | Dec Reg |  Bit 7  |  Bit 6-5  |  Bit 4-3-2  |  Bit 1-0
-       -------|---------|---------|-----------|-------------|-----------
-         1B   |   27    |    0    |  MA[1:0]  |    DO[2:0]  |  MS[1:0]
+       Hex Rg | Dec Reg |  Bit 7  |  Bit 6-5  |  Bit 4-3-2  |  Bit 1-0  |
+       -------|---------|---------|-----------|-------------|-----------|
+         1B   |   27    |    0    |  MA[1:0]  |    DO[2:0]  |  MS[1:0]  |
      
      MA[1:0] --> Number of samples averaged (1 to 8)
-        00 = 1(Default)
+        00 = 1 (Default)
         01 = 2
         10 = 4
-        11 = 8
+        11 = 8 
      
      DO[2:0] --> Output Rate    with 8 samples and normal mesurement
         000 = 0.75Hz
         001 = 1.5Hz
         010 = 3Hz
         011 = 7.5Hz
-        100 = 15Hz (Default)                0x70 (67ms delay)
-        101 = 30Hz                          0x74 (34ms delay)
-        110 = 75Hz                          0x78 (14ms delay)
+        100 = 15Hz (Default)                (67ms delay)
+        101 = 30Hz                          (34ms delay)
+        110 = 75Hz                          (14ms delay)
         111 = Reserved
      
      MS[1:0] --> Mesurement mode
         00 = Normal (Default)
         01 = Positive Bias
         10 = Negative Bias
-        11 =Reserved
+        11 = Reserved
      */
-    
-    Serial.print("Register B configuration : ");
-    err = Twi.config(ADRESS_HMC5883L,HMC5883L_RA_CONF_REG_B,0x40);
-    t_err += err;
-    config_status(err);
+
+    HMC5883L_Register.Reg_A.Sub_Reg_A.MA = 0b11;
+    HMC5883L_Register.Reg_A.Sub_Reg_A.DO = 0b110;
+    HMC5883L_Register.Reg_A.Sub_Reg_A.MS = 0b00;
+    HMC5883L_Register.Reg_A.Sub_Reg_A.RESERVED = 0;
+    err += com_status( Twi.config(ADRESS_HMC5883L, HMC5883L_CONF_REG_A, HMC5883L_Register.Reg_A.all_bits) );
     delay(200);
     
+    Serial.print("Register B configuration : ");
     /*
-    
     CONF_REG_B :
      
-       Hex Rg | Dec Reg |  Bit 7-6-5  |  Bit 4-3-2-1-0
-       -------|---------|-------------|-----------------
-         1B   |   27    |    GN[2:0]  |        0
+       Hex Rg | Dec Reg |  Bit 7-6-5  |  Bit 4-3-2-1-0  |
+       -------|---------|-------------|-----------------|
+         1B   |   27    |    GN[2:0]  |        0        |
     
     GN[2:0] --> Gain Configuration
      
@@ -108,12 +111,12 @@ bool HMC5883L::init(void)
         111 =           ± 8.1 Ga                    230                     4.35                0xE0
     */
    
-    Serial.print("Mode register configuration : ");
-    err = Twi.config(ADRESS_HMC5883L,HMC5883L_RA_MODE_REGISTER,0x00);
-    t_err += err;
-    config_status(err);
-    delay(200); // delay to help reading the configuration outcome on the terminal. Not absolutly needed
+    HMC5883L_Register.Reg_B.Sub_Reg_B.GN = 0b101;
+    HMC5883L_Register.Reg_B.Sub_Reg_B.RESERVED = 0;  // needs to be cleared
+    err += com_status( Twi.config(ADRESS_HMC5883L, HMC5883L_CONF_REG_B, HMC5883L_Register.Reg_B.all_bits) );
+    delay(200);
    
+    Serial.print("Mode register configuration : ");
     /* 
      MODE_REGISTER :
      
@@ -131,9 +134,14 @@ bool HMC5883L::init(void)
      11 = idle
      */
     
+    HMC5883L_Register.Reg_MODE.Sub_Reg_MODE.HS = 0;
+    HMC5883L_Register.Reg_MODE.Sub_Reg_MODE.MR = 0b00;
+    err += com_status( Twi.config(ADRESS_HMC5883L, HMC5883L_MODE_REGISTER, HMC5883L_Register.Reg_MODE.all_bits) );
+    delay(200); // delay to help reading the configuration outcome on the terminal. Not absolutly needed
+    
     delay(10); // minimum 6ms delay needed after configuration and before reading
     
-    if (t_err != 0) 
+    if (err != 0) 
     {
         Serial.println("\n   !!!!!!   HMC5883L Configuration : ERROR   !!!!!!\n");
         delay(2000);
@@ -143,7 +151,10 @@ bool HMC5883L::init(void)
     {
         delay(700);
         Serial.println("\n   >>>>>   HMC5883L Configuration : SUCCESS   <<<<<\n");
+
         getMagnetoScale();
+        getOutputRateDelay();
+
         delay(1500);
         return true;
     }
@@ -152,69 +163,36 @@ bool HMC5883L::init(void)
 /**
  * According to the gain set up in the init process, "getMagnetoScale" gives the appropriate scale for further calculation
  * 
- * @return  [float]   The apropriate scale
  */
 void HMC5883L::getMagnetoScale(void)
 {
-    uint8_t gain;
-    uint8_t mask = 0b11100000;
-    uint8_t* twi_read_value = NULL;
 
-    twi_read_value = Twi.readFrom(ADRESS_HMC5883L, HMC5883L_RA_CONF_REG_B, 1, twi_read_value);
-    if (twi_read_value == NULL)
-    {
-        printf("Couldn't allow memory, shuting down...");
-        exit(EXIT_FAILURE);
-    }
-
-    gain = *twi_read_value;
-    gain = (gain & mask) >> 5;
-    
-    free(twi_read_value);
-
-    if (gain == 0) magneto_sensitivity = 0.73;
-    if (gain == 1) magneto_sensitivity = 0.92;
-    if (gain == 2) magneto_sensitivity = 1.22;
-    if (gain == 3) magneto_sensitivity = 1.52;
-    if (gain == 4) magneto_sensitivity = 2.27;
-    if (gain == 5) magneto_sensitivity = 2.56;
-    if (gain == 6) magneto_sensitivity = 3.03;
-    if (gain == 7) magneto_sensitivity = 4.35;
+    if (HMC5883L_Register.Reg_B.Sub_Reg_B.GN == 0) magneto_sensitivity = 0.73;
+    if (HMC5883L_Register.Reg_B.Sub_Reg_B.GN == 1) magneto_sensitivity = 0.92;
+    if (HMC5883L_Register.Reg_B.Sub_Reg_B.GN == 2) magneto_sensitivity = 1.22;
+    if (HMC5883L_Register.Reg_B.Sub_Reg_B.GN == 3) magneto_sensitivity = 1.52;
+    if (HMC5883L_Register.Reg_B.Sub_Reg_B.GN == 4) magneto_sensitivity = 2.27;
+    if (HMC5883L_Register.Reg_B.Sub_Reg_B.GN == 5) magneto_sensitivity = 2.56;
+    if (HMC5883L_Register.Reg_B.Sub_Reg_B.GN == 6) magneto_sensitivity = 3.03;
+    if (HMC5883L_Register.Reg_B.Sub_Reg_B.GN == 7) magneto_sensitivity = 4.35;
     
 }
 
 /**
  * According to the frequency set up in the init process, getOutputRateDelay gives the delay to wait between each sample
  * 
- * @return  [int16_t]   Delay in ms to wait between each sample
  */
-int16_t HMC5883L::getOutputRateDelay(void)
+void HMC5883L::getOutputRateDelay(void)
 {
-    uint8_t rate;
-    uint8_t mask = 0x1C; // 0b00011100
-    uint8_t* twi_read_value = NULL;
 
-    twi_read_value = Twi.readFrom(ADRESS_HMC5883L, HMC5883L_RA_CONF_REG_A, 1, twi_read_value);
-    if (twi_read_value == NULL)
-    {
-        printf("Couldn't allow memory, shuting down...");
-        exit(EXIT_FAILURE);
-    }
-
-    rate = *twi_read_value;
-    rate = (rate & mask) >> 2;
-
-    free(twi_read_value);
+    if (HMC5883L_Register.Reg_A.Sub_Reg_A.DO == 0) outputRateDelay = 1334;     // 000 = 0.75Hz // delay in ms to wait between each sample
+    if (HMC5883L_Register.Reg_A.Sub_Reg_A.DO == 1) outputRateDelay = 667;      // 001 = 1.5Hz
+    if (HMC5883L_Register.Reg_A.Sub_Reg_A.DO == 2) outputRateDelay = 334;      // 010 = 3Hz
+    if (HMC5883L_Register.Reg_A.Sub_Reg_A.DO == 3) outputRateDelay = 134;      // 011 = 7.5Hz
+    if (HMC5883L_Register.Reg_A.Sub_Reg_A.DO == 4) outputRateDelay = 67;       // 100 = 15Hz (default)
+    if (HMC5883L_Register.Reg_A.Sub_Reg_A.DO == 5) outputRateDelay = 34;       // 101 = 30Hz
+    if (HMC5883L_Register.Reg_A.Sub_Reg_A.DO == 6) outputRateDelay = 14;       // 110 = 75Hz
     
-    if (rate == 0) return 1334;     // 000 = 0.75Hz // delay in ms to wait between each sample
-    if (rate == 1) return 667;      // 001 = 1.5Hz
-    if (rate == 2) return 334;      // 010 = 3Hz
-    if (rate == 3) return 134;      // 011 = 7.5Hz
-    if (rate == 4) return 67;       // 100 = 15Hz (default)
-    if (rate == 5) return 34;       // 101 = 30Hz
-    if (rate == 6) return 14;       // 110 = 75Hz
-    
-    else return -1;
 }
 
 /**
@@ -222,23 +200,32 @@ int16_t HMC5883L::getOutputRateDelay(void)
  */
 void HMC5883L::calibrate(void)
 {
-    int16_t Xmin = 0;
-    int16_t Xmax = 0;
-    int16_t Ymin = 0;
-    int16_t Ymax = 0;
-    int16_t Zmin = 0;
-    int16_t Zmax = 0;
-    uint8_t cal_time = 20; // in seconds
-    
-    Serial.printf("Calibration : move the sensor on all three axes for %u \n", cal_time);
+    int16_t Xmin, Xmax, Ymin, Ymax, Zmin, Zmax;
+
+    // Change mesurement mode to self positive bias test
+    //HMC5883L_Register.Reg_A.Sub_Reg_A.MS = 0b01;
+    //Twi.config(ADRESS_HMC5883L, HMC5883L_CONF_REG_A, HMC5883L_Register.Reg_A.all_bits);
+
+    getMxyz_raw();
+
+    //Initialize first values
+    Xmin = Mxyz_raw[0];
+    Xmax = Mxyz_raw[0];
+    Ymin = Mxyz_raw[1];
+    Ymax = Mxyz_raw[1];
+    Zmin = Mxyz_raw[2];
+    Zmax = Mxyz_raw[2];
+
+    Serial.println("Calibration : move the sensor on all three axes");
     delay(2000);
     Serial.println("!!! GO !!!");
-    delay(500);
-    for (uint16_t i=0; i<500; i++)
+    delay(1000);
+
+    for (uint16_t i=0; i<250; i++)
     {
         getMxyz_raw();
         
-        if (i<100) {
+        if (i<50) {
             // DO NOTHING
             // get rid of the first values that might be really off
         }
@@ -272,7 +259,7 @@ void HMC5883L::getMxyz_raw (void)
     int16_t Mx_raw, My_raw, Mz_raw;
     uint8_t* twi_read_value = NULL;
 
-    twi_read_value = Twi.readFrom(ADRESS_HMC5883L, HMC5883L_RA_XOUT_H, 6, twi_read_value);
+    twi_read_value = Twi.readFrom(ADRESS_HMC5883L, HMC5883L_XOUT_H, 6, twi_read_value);
     if (twi_read_value == NULL)
     {
         printf("Couldn't allow memory, shuting down...");
@@ -291,7 +278,7 @@ void HMC5883L::getMxyz_raw (void)
     My_raw = (MyH << 8) + MyL;
     Mz_raw = (MzH << 8) + MzL;
 
-    
+    // conversion for 2's complement
     if (Mx_raw >= 0x8000) 
         Mx_raw = -((65535 - Mx_raw) + 1);
     if (My_raw >= 0x8000) 
@@ -305,7 +292,7 @@ void HMC5883L::getMxyz_raw (void)
     Mxyz_raw[2] = Mz_raw;
     
     free(twi_read_value);
-    delay(getOutputRateDelay()); // see init:Register A:Output rate + getOutputRateDelay()  
+    delay(outputRateDelay);
 }
 
 /**

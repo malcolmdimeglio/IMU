@@ -358,10 +358,10 @@ size_t TwoWire::write(const uint8_t *data, size_t quantity)
 uint8_t TwoWire::config(uint8_t slave_adress, uint8_t slave_reg, uint8_t data)
 {
     int err;
-    TwoWire::beginTransmission(slave_adress);
-    TwoWire::write(slave_reg);
-    TwoWire::write(data);
-    err = TwoWire::endTransmission();
+    beginTransmission(slave_adress);
+    write(slave_reg);
+    write(data);
+    err = endTransmission();
     return err;
 }
 
@@ -509,22 +509,29 @@ uint8_t TwoWire::requestFrom(uint8_t address, uint8_t length, uint8_t sendStop)
 	return count;
 }
 
-uint8_t* TwoWire::readFrom(uint8_t addr_slave, uint8_t addr_reg, uint8_t length, uint8_t* values) // to be improved for legnth > 1
+uint8_t* TwoWire::readFrom(uint8_t addr_slave, uint8_t addr_reg, uint8_t length, uint8_t* values)
 {
     uint8_t i;
+
     values = (uint8_t*) malloc(length * sizeof(uint8_t));
+
     if (values == NULL)
         return NULL;
-    TwoWire::beginTransmission(addr_slave);
-    TwoWire::write(addr_reg);
-    TwoWire::endTransmission(false);
-    TwoWire::requestFrom(addr_slave,length);
-    while(TwoWire::available() != length) {}
-        for (i=0; i<length; i++)
-        {
-            values[i] = TwoWire::read();
-        }
-    TwoWire::endTransmission(true);
+
+    beginTransmission(addr_slave);
+    write(addr_reg);
+    endTransmission(false);
+    requestFrom(addr_slave,length);
+
+    while(available() != length) {}
+
+    for (i=0; i<length; i++)
+    {
+        values[i] = read();
+    }
+
+    endTransmission(true);
+
     return values;
 }
 

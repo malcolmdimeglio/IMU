@@ -6,10 +6,8 @@
 //  Copyright (c) 2015 Malcolm DI MEGLIO. All rights reserved.
 //
 
-#define F_CPU 48000000
+//#define F_CPU 48000000 // defined in makefile
 
-#include <iostream>
-#include <fstream>
 #include <stdlib.h>
 #include <stdio.h>
 
@@ -40,19 +38,19 @@ extern "C" int main(int argc, char *argv[])
     Serial.begin(115200);
     Twi.begin(); // (Here 400kHz speed) for further information check F_CPU/F_BUS in kinestis.h line 226
 
-    ahrs.initSensors();
+    Ahrs.initSensors();
 
     digitalWriteFast(12, LOW); // Bleue
     digitalWriteFast(11, HIGH); // Green
     
     while (1)
     {
-        ahrs.readSensors();
-        ahrs.getAngles();
+        Ahrs.readSensors();
+        Ahrs.getAngles();
 
-        ThetaX = ahrs.Roll;
-        ThetaY = ahrs.Pitch;
-        ThetaZ = ahrs.Yaw;
+        ThetaX = Ahrs.Roll;
+        ThetaY = Ahrs.Pitch;
+        ThetaZ = Ahrs.Yaw;
 
         Serial.printf("%.4f %.4f %.4f\n",ThetaX, ThetaY, ThetaZ);
         

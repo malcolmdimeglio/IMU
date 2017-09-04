@@ -80,14 +80,15 @@ void AHRS::getAngles(void)
         Zrot -= 2*PI;
 
 // TODO : the ranges are wrong here. this needs to be double check and corrected
+// Add quaternions ??
 // should be 
-// // YAW : [0° : 360°]
     // PITCH : [-90° : 90°]
     // ROLL : [-90° : 90°]
     // YAW : [-180° : 180°]
      
      
      // but it is
+    // YAW : [0° : 360°]
     // PITCH : [-90° : 90°]
     // ROLL : [-180° : 180°]
     Yaw = Zrot * RAD_TO_DEG;
@@ -95,7 +96,7 @@ void AHRS::getAngles(void)
     Roll = atan2( Ay , Az ) * RAD_TO_DEG;
 }
 
-AHRS ahrs;
+AHRS Ahrs;
 
 
 

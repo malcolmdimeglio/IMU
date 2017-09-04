@@ -23,6 +23,6 @@ public:
 
 };
 
-extern AHRS ahrs;
+extern AHRS Ahrs;
 
 #endif /* defined(____AHRS__) */
