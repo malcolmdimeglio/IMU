@@ -52,7 +52,7 @@ extern "C" int main(int argc, char *argv[])
         ThetaY = Ahrs.Pitch;
         ThetaZ = Ahrs.Yaw;
 
-        Serial.printf("%.4f %.4f %.4f\n",ThetaX, ThetaY, ThetaZ);
+        //Serial.printf("%.4f %.4f %.4f\n",ThetaX, ThetaY, ThetaZ);
         
         while (!Serial){}
             // TODO : /!\ Dangerous, implement timeout to exit the loop

@@ -306,6 +306,8 @@ private:
 
     MPU6050_reg_conf MPU6050_Register;
 
+    int8_t ioctl(uint8_t, uint8_t, uint8_t);
+    int8_t ioctl(uint8_t, uint8_t, uint8_t, uint8_t);
     int8_t com_status(uint8_t);
     void getAxyz_raw(void);
     void getGxyz_raw(void);

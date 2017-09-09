@@ -27,7 +27,8 @@
 #define HMC5883L_ID_REG_B        0x0B
 #define HMC5883L_ID_REG_C        0x0C
 
-
+#define READ    1
+#define WRITE   2
 /**
  * Local declination http://www.magnetic-declination.com/ 
  * Declination is  the 'Error' of the magnetic field in current location.
@@ -102,6 +103,8 @@ private:
 
     HMC5883L_reg_conf HMC5883L_Register;
 
+    int8_t ioctl(uint8_t, uint8_t, uint8_t);
+    int8_t ioctl(uint8_t, uint8_t, uint8_t, uint8_t);
     int8_t com_status(uint8_t);
     void getMxyz_raw (void);
     void getMagnetoScale(void);

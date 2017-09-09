@@ -11,6 +11,49 @@
 #include <math.h>
 
 
+/**
+ *  Ioctl fucntion is overloaded.
+ *  Reads or Writes depending on the given type and the amount of parameters.
+ *  size in byte
+ * 
+ */
+int8_t MPU6050::ioctl(uint8_t type, uint8_t address_reg, uint8_t size, uint8_t* data)
+{
+    int8_t err;
+    uint8_t size_data;
+    switch(type)
+    {
+        case READ:
+            size_data = sizeof(data) / sizeof (uint8_t);
+            if (size != size_data)
+            {
+                Serial.println("array size is wrong");
+                return -1;
+            }
+
+            err = Twi.readFrom(ADRESS_MPU6050, address_reg, size, data);
+            break;
+        default:
+            Serial.printf("Wrong ioctl type\n");
+            return -1;
+            break;
+    }
+}
+
+int8_t MPU6050::ioctl(uint8_t type, uint8_t address_reg, uint8_t full_reg)
+{
+    switch(type)
+    {
+        case WRITE:
+            return com_status( Twi.config(ADRESS_MPU6050, address_reg, full_reg) );
+            break;
+        default:
+            Serial.printf("Wrong ioctl type\n");
+            return -1;
+            break;
+    }
+}
+
 /** 
  * config_status prints out the outcome of each configuration command sent to the sensor
  *
@@ -46,7 +89,7 @@ int8_t MPU6050::com_status(uint8_t err)
  */
 bool MPU6050::init(void)
 {
-    uint8_t err = 0;
+    int8_t err = 0;
     
     Serial.print("Reset device : ");
     /*
@@ -92,14 +135,15 @@ bool MPU6050::init(void)
     MPU6050_Register.Reg_PWR_MGMT_1.Sub_Reg_PWR_MGMT_1.TEMP_DIS = 0;
     MPU6050_Register.Reg_PWR_MGMT_1.Sub_Reg_PWR_MGMT_1.CLKSEL = 0;
    
-    err +=  com_status( Twi.config(ADRESS_MPU6050, MPU6050_PWR_MGMT_1, MPU6050_Register.Reg_PWR_MGMT_1.all_bits) );
+    err += ioctl(WRITE, MPU6050_PWR_MGMT_1, MPU6050_Register.Reg_PWR_MGMT_1.all_bits);
+    
     MPU6050_Register.Reg_PWR_MGMT_1.Sub_Reg_PWR_MGMT_1.DEVICE_RESET = 0; // After a reset, the Reset bit clears itself. Here we update the class acordingly
     delay(300);
     
     Serial.print("Disable Temperature Sensor : ");
     MPU6050_Register.Reg_PWR_MGMT_1.Sub_Reg_PWR_MGMT_1.TEMP_DIS = 1; //Temperature sensor disable
 
-    err += com_status( Twi.config(ADRESS_MPU6050, MPU6050_PWR_MGMT_1, MPU6050_Register.Reg_PWR_MGMT_1.all_bits) );
+    err += ioctl(WRITE, MPU6050_PWR_MGMT_1, MPU6050_Register.Reg_PWR_MGMT_1.all_bits);
     delay(300);
     
     Serial.print("Config Low Pass Filter : ");
@@ -146,7 +190,7 @@ bool MPU6050::init(void)
     MPU6050_Register.Reg_CONFIG.Sub_Reg_CONFIG.EXT_SYNC_SET = 0;
     MPU6050_Register.Reg_CONFIG.Sub_Reg_CONFIG.DLPF_CFG = 1;
 
-    err += com_status (Twi.config(ADRESS_MPU6050, MPU6050_CONFIG, MPU6050_Register.Reg_CONFIG.all_bits));
+    err += ioctl(WRITE, MPU6050_CONFIG, MPU6050_Register.Reg_CONFIG.all_bits);
     delay(300);
     
     Serial.print("Init Sample rate : ");
@@ -159,7 +203,8 @@ bool MPU6050::init(void)
     */
    
     MPU6050_Register.Reg_SMPLRT_DIV.Sub_Reg_SMPLRT_DIV.SMPLRT_DIV = 0;
-    err += com_status (Twi.config(ADRESS_MPU6050, MPU6050_SMPLRT_DIV, MPU6050_Register.Reg_SMPLRT_DIV.all_bits));
+    
+    err += ioctl(WRITE, MPU6050_SMPLRT_DIV, MPU6050_Register.Reg_SMPLRT_DIV.all_bits);
     delay(300);
     
     Serial.print("Gyro Setting : ");
@@ -185,7 +230,8 @@ bool MPU6050::init(void)
     MPU6050_Register.Reg_GYRO_CONFIG.Sub_Reg_GYRO_CONFIG.ZG_ST = 0;
     MPU6050_Register.Reg_GYRO_CONFIG.Sub_Reg_GYRO_CONFIG.ZG_ST = 0;
     MPU6050_Register.Reg_GYRO_CONFIG.Sub_Reg_GYRO_CONFIG.ZG_ST = 0;
-    err += com_status (Twi.config(ADRESS_MPU6050, MPU6050_GYRO_CONFIG, MPU6050_Register.Reg_GYRO_CONFIG.all_bits));
+
+    err += ioctl(WRITE, MPU6050_GYRO_CONFIG, MPU6050_Register.Reg_GYRO_CONFIG.all_bits);
     delay(300);
     
     Serial.print("Accelero Setting : ");
@@ -211,7 +257,8 @@ bool MPU6050::init(void)
     MPU6050_Register.Reg_ACCEL_CONFIG.Sub_Reg_ACCEL_CONFIG.ZA_ST = 0;
     MPU6050_Register.Reg_ACCEL_CONFIG.Sub_Reg_ACCEL_CONFIG.YA_ST = 0;
     MPU6050_Register.Reg_ACCEL_CONFIG.Sub_Reg_ACCEL_CONFIG.XA_ST = 0;
-    err += com_status (Twi.config(ADRESS_MPU6050, MPU6050_ACCEL_CONFIG, MPU6050_Register.Reg_ACCEL_CONFIG.all_bits));
+
+    err += ioctl(WRITE, MPU6050_ACCEL_CONFIG, MPU6050_Register.Reg_ACCEL_CONFIG.all_bits);
     delay(300);
     
     Serial.print("Disable interrupt : ");
@@ -232,7 +279,8 @@ bool MPU6050::init(void)
     MPU6050_Register.Reg_INT_ENABLE.Sub_Reg_INT_ENABLE.I2C_MST_INT_EN = 0;
     MPU6050_Register.Reg_INT_ENABLE.Sub_Reg_INT_ENABLE.FIFO_OFLOW_EN = 0;
     MPU6050_Register.Reg_INT_ENABLE.Sub_Reg_INT_ENABLE.MOT_EN = 0;
-    err = com_status (Twi.config(ADRESS_MPU6050, MPU6050_INT_ENABLE, MPU6050_Register.Reg_INT_ENABLE.all_bits));
+
+    err += ioctl(WRITE, MPU6050_INT_ENABLE, MPU6050_Register.Reg_INT_ENABLE.all_bits);
     delay(300);
     
     Serial.print("Disable FIFO : ");
@@ -253,7 +301,8 @@ bool MPU6050::init(void)
     MPU6050_Register.Reg_FIFO_EN.Sub_Reg_FIFO_EN.ZG_FIFO_EN = 0;
     MPU6050_Register.Reg_FIFO_EN.Sub_Reg_FIFO_EN.YG_FIFO_EN = 0;
     MPU6050_Register.Reg_FIFO_EN.Sub_Reg_FIFO_EN.XG_FIFO_EN = 0;
-    err = com_status (Twi.config(ADRESS_MPU6050, MPU6050_FIFO_EN, MPU6050_Register.Reg_FIFO_EN.all_bits));
+
+    err += ioctl(WRITE, MPU6050_FIFO_EN, MPU6050_Register.Reg_FIFO_EN.all_bits);
     delay(300);
     
     Serial.print("Disable I2C master modes : ");
@@ -299,7 +348,8 @@ bool MPU6050::init(void)
     MPU6050_Register.Reg_I2C_MST_CTRL.Sub_Reg_I2C_MST_CTRL.SLV3_FIFO_EN = 0;
     MPU6050_Register.Reg_I2C_MST_CTRL.Sub_Reg_I2C_MST_CTRL.WAIT_FOR_ES = 0;
     MPU6050_Register.Reg_I2C_MST_CTRL.Sub_Reg_I2C_MST_CTRL.MUL_MST_EN = 0;
-    err = com_status (Twi.config(ADRESS_MPU6050, MPU6050_I2C_MST_CTRL, MPU6050_Register.Reg_I2C_MST_CTRL.all_bits));
+
+    err += ioctl(WRITE, MPU6050_I2C_MST_CTRL, MPU6050_Register.Reg_I2C_MST_CTRL.all_bits);
     delay(300);
     
     Serial.print("Disable FIFO & I2C master modes : ");
@@ -326,7 +376,8 @@ bool MPU6050::init(void)
     MPU6050_Register.Reg_USER_CTRL.Sub_Reg_USER_CTRL.FIFO_RESET = 0;
     MPU6050_Register.Reg_USER_CTRL.Sub_Reg_USER_CTRL.I2C_MST_RESET = 0;
     MPU6050_Register.Reg_USER_CTRL.Sub_Reg_USER_CTRL.SIG_COND_RESET = 0;
-    err = com_status (Twi.config(ADRESS_MPU6050, MPU6050_USER_CTRL, MPU6050_Register.Reg_USER_CTRL.all_bits));
+
+    err += ioctl(WRITE, MPU6050_USER_CTRL, MPU6050_Register.Reg_USER_CTRL.all_bits);
     delay(300);
     
     Serial.print("Reset Gyro & Accelero signals: ");
@@ -344,8 +395,8 @@ bool MPU6050::init(void)
     MPU6050_Register.Reg_SIGNAL_PATH_RESET.Sub_Reg_SIGNAL_PATH_RESET.TEMP_RESET = 1;
     MPU6050_Register.Reg_SIGNAL_PATH_RESET.Sub_Reg_SIGNAL_PATH_RESET.ACCEL_RESET = 1;
     MPU6050_Register.Reg_SIGNAL_PATH_RESET.Sub_Reg_SIGNAL_PATH_RESET.GYRO_RESET = 1;
-    err = com_status (Twi.config(ADRESS_MPU6050, MPU6050_SIGNAL_PATH_RESET, MPU6050_Register.Reg_SIGNAL_PATH_RESET.all_bits));
 
+    err += ioctl(WRITE, MPU6050_SIGNAL_PATH_RESET, MPU6050_Register.Reg_SIGNAL_PATH_RESET.all_bits);
     delay(300);
 
     if (err != 0)
@@ -376,23 +427,22 @@ void MPU6050::getAxyz_raw(void)
 {
     uint8_t AxH, AxL, AyH, AyL, AzH, AzL; 
     int16_t Ax_raw, Ay_raw, Az_raw;
-    uint8_t* twi_read_value = NULL;
+    uint8_t raw_data[6];
+    int8_t err;
 
-    twi_read_value = Twi.readFrom(ADRESS_MPU6050, MPU6050_ACCEL_XOUT_H, 6, twi_read_value);
-    if (twi_read_value == NULL)
+    err = ioctl(READ, MPU6050_ACCEL_XOUT_H, 6, raw_data);
+    if (err != 0)
     {
-        printf("Couldn't allow memory, shuting down...");
-        exit(EXIT_FAILURE);
+        Serial.println("Data read error");
+        return;
     }
 
-    AxH = twi_read_value[0];
-    AxL = twi_read_value[1];
-    AyH = twi_read_value[2];
-    AyL = twi_read_value[3];
-    AzH = twi_read_value[4];
-    AzL = twi_read_value[5];
-
-    free (twi_read_value);
+    AxH = raw_data[0];
+    AxL = raw_data[1];
+    AyH = raw_data[2];
+    AyL = raw_data[3];
+    AzH = raw_data[4];
+    AzL = raw_data[5];
     
     Ax_raw = (AxH << 8) + AxL;
     Ay_raw = (AyH << 8) + AyL;
@@ -419,23 +469,22 @@ void MPU6050::getGxyz_raw(void)
 {
     uint8_t GxH, GxL, GyH, GyL, GzH, GzL;
     int16_t Gx_raw, Gy_raw, Gz_raw;
-    uint8_t* twi_read_value = NULL;
+    uint8_t raw_data[6];
+    int8_t err;
 
-    twi_read_value = Twi.readFrom(ADRESS_MPU6050, MPU6050_GYRO_XOUT_H, 6, twi_read_value);
-    if (twi_read_value == NULL)
+    err = ioctl(READ, MPU6050_GYRO_XOUT_H, 6, raw_data);
+    if (err != 0)
     {
-        printf("Couldn't allow memory, shuting down...");
-        exit(EXIT_FAILURE);
+        Serial.println("Data read error");
+        return;
     }
 
-    GxH = twi_read_value[0];
-    GxL = twi_read_value[1];
-    GyH = twi_read_value[2];
-    GyL = twi_read_value[3];
-    GzH = twi_read_value[4];
-    GzL = twi_read_value[5];
-
-    free (twi_read_value);
+    GxH = raw_data[0];
+    GxL = raw_data[1];
+    GyH = raw_data[2];
+    GyL = raw_data[3];
+    GzH = raw_data[4];
+    GzL = raw_data[5];
 
     Gx_raw = (GxH << 8) + GxL;
     Gy_raw = (GyH << 8) + GyL;
@@ -463,16 +512,17 @@ void MPU6050::getGyroScale(void)
 {
     uint8_t gyro_scale;
     uint8_t mask_fs_sel = 0b00011000;
-    uint8_t* twi_read_value = NULL;
+    uint8_t raw_data[1];
+    int8_t err;
 
-    twi_read_value = Twi.readFrom(ADRESS_MPU6050, MPU6050_GYRO_CONFIG,1 , twi_read_value);
-    if (twi_read_value == NULL)
+    err = ioctl(READ, MPU6050_GYRO_CONFIG, 1, raw_data);
+    if (err != 0)
     {
-        printf("Couldn't allow memory, shuting down...");
-        exit(EXIT_FAILURE);
+        Serial.println("Data read error");
+        return;
     }
 
-    gyro_scale = *twi_read_value;
+    gyro_scale = *raw_data;
     gyro_scale = (gyro_scale & mask_fs_sel) >> 3;
 
     if (gyro_scale == 0) gyro_sensitivity = 131.0000;
@@ -480,7 +530,6 @@ void MPU6050::getGyroScale(void)
     if (gyro_scale == 2) gyro_sensitivity = 32.7500;
     if (gyro_scale == 3) gyro_sensitivity = 16.3750;
 
-    free (twi_read_value);
 }
 
 /**
@@ -492,24 +541,23 @@ void MPU6050::getAcceleroScale(void)
 {
     uint8_t accelero_scale;
     uint8_t mask_fs_sel = 0b00011000;
-    uint8_t* twi_read_value = NULL;
+    uint8_t raw_data[1];
+    int8_t err;
 
-    twi_read_value = Twi.readFrom(ADRESS_MPU6050, MPU6050_ACCEL_CONFIG, 1, twi_read_value);
-    if (twi_read_value == NULL)
+    err = ioctl(READ, MPU6050_ACCEL_CONFIG, 1, raw_data);
+    if (err != 0)
     {
-        printf("Couldn't allow memory, shuting down...");
-        exit(EXIT_FAILURE);
+        Serial.println("Data read error");
+        return;
     }
 
-    accelero_scale = *twi_read_value;
+    accelero_scale = *raw_data;
     accelero_scale = (accelero_scale & mask_fs_sel) >> 3;
 
     if (accelero_scale == 0) accelero_sensitivity = 16384.0000;
     if (accelero_scale == 1) accelero_sensitivity = 8192.0000;
     if (accelero_scale == 2) accelero_sensitivity = 4096.0000;
     if (accelero_scale == 3) accelero_sensitivity = 2048.0000;
-
-    free (twi_read_value);
 }
 
 /**
@@ -529,9 +577,10 @@ void MPU6050::getAxyz(void)
  */
 void MPU6050::getGxyz(void)
 {
-    Gxyz[0] = Gxyz_raw[0] / gyro_sensitivity;
-    Gxyz[1] = Gxyz_raw[1] / gyro_sensitivity;
-    Gxyz[2] = Gxyz_raw[2] / gyro_sensitivity;
+    // To be converted into radiants since value in °/s
+    Gxyz[0] = (Gxyz_raw[0] / gyro_sensitivity) * DEG_TO_RAD;
+    Gxyz[1] = (Gxyz_raw[1] / gyro_sensitivity) * DEG_TO_RAD;
+    Gxyz[2] = (Gxyz_raw[2] / gyro_sensitivity) * DEG_TO_RAD;
 }
 
 void MPU6050::updateAxyzGxyz(void)

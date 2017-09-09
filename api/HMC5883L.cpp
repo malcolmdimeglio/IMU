@@ -15,6 +15,49 @@
 #include <math.h>
 
 
+/**
+ *  Ioctl fucntion is overloaded.
+ *  Reads or Writes depending on the given type and the amount of parameters.
+ *  size in byte
+ * 
+ */
+int8_t HMC5883L::ioctl(uint8_t type, uint8_t address_reg, uint8_t size, uint8_t* data)
+{
+    int8_t err;
+    uint8_t size_data;
+    switch(type)
+    {
+        case READ:
+            size_data = sizeof(data) / sizeof (uint8_t);
+            if (size != size_data)
+            {
+                Serial.println("array size is wrong");
+                return -1;
+            }
+
+            err = Twi.readFrom(ADRESS_HMC5883L, address_reg, size, data);
+            break;
+        default:
+            Serial.printf("Wrong ioctl type\n");
+            return -1;
+            break;
+    }
+}
+
+int8_t HMC5883L::ioctl(uint8_t type, uint8_t address_reg, uint8_t full_reg)
+{
+    switch(type)
+    {
+        case WRITE:
+            return com_status( Twi.config(ADRESS_HMC5883L, address_reg, full_reg) );
+            break;
+        default:
+            Serial.printf("Wrong ioctl type\n");
+            return -1;
+            break;
+    }
+}
+
 /** 
  * config_status prints out the outcome of each configuration command sent to the sensor
  *
@@ -50,7 +93,7 @@ int8_t HMC5883L::com_status(uint8_t err)
  */
 bool HMC5883L::init(void)
 {
-    uint8_t err = 0;
+    int8_t err = 0;
 
     Serial.print("Register A configuration : ");
     /*
@@ -60,12 +103,13 @@ bool HMC5883L::init(void)
        -------|---------|---------|-----------|-------------|-----------|
          1B   |   27    |    0    |  MA[1:0]  |    DO[2:0]  |  MS[1:0]  |
      
-     MA[1:0] --> Number of samples averaged (1 to 8)
-        00 = 1 (Default)
-        01 = 2
-        10 = 4
-        11 = 8 
      
+     MS[1:0] --> Mesurement mode
+        00 = Normal (Default)
+        01 = Positive Bias
+        10 = Negative Bias
+        11 = Reserved
+
      DO[2:0] --> Output Rate    with 8 samples and normal mesurement
         000 = 0.75Hz
         001 = 1.5Hz
@@ -75,19 +119,19 @@ bool HMC5883L::init(void)
         101 = 30Hz                          (34ms delay)
         110 = 75Hz                          (14ms delay)
         111 = Reserved
-     
-     MS[1:0] --> Mesurement mode
-        00 = Normal (Default)
-        01 = Positive Bias
-        10 = Negative Bias
-        11 = Reserved
+
+     MA[1:0] --> Number of samples averaged (1 to 8)
+        00 = 1 (Default)
+        01 = 2
+        10 = 4
+        11 = 8 
      */
 
-    HMC5883L_Register.Reg_A.Sub_Reg_A.MA = 0b11;
-    HMC5883L_Register.Reg_A.Sub_Reg_A.DO = 0b110;
     HMC5883L_Register.Reg_A.Sub_Reg_A.MS = 0b00;
+    HMC5883L_Register.Reg_A.Sub_Reg_A.DO = 0b110;
+    HMC5883L_Register.Reg_A.Sub_Reg_A.MA = 0b00;
     HMC5883L_Register.Reg_A.Sub_Reg_A.RESERVED = 0;
-    err += com_status( Twi.config(ADRESS_HMC5883L, HMC5883L_CONF_REG_A, HMC5883L_Register.Reg_A.all_bits) );
+    err += ioctl(WRITE, HMC5883L_CONF_REG_A, HMC5883L_Register.Reg_A.all_bits);
     delay(200);
     
     Serial.print("Register B configuration : ");
@@ -110,10 +154,10 @@ bool HMC5883L::init(void)
         110 =           ± 5.6 Ga                    330                     3.03                0xC0
         111 =           ± 8.1 Ga                    230                     4.35                0xE0
     */
-   
-    HMC5883L_Register.Reg_B.Sub_Reg_B.GN = 0b101;
+
     HMC5883L_Register.Reg_B.Sub_Reg_B.RESERVED = 0;  // needs to be cleared
-    err += com_status( Twi.config(ADRESS_HMC5883L, HMC5883L_CONF_REG_B, HMC5883L_Register.Reg_B.all_bits) );
+    HMC5883L_Register.Reg_B.Sub_Reg_B.GN = 0b101;
+    err += ioctl(WRITE, HMC5883L_CONF_REG_B, HMC5883L_Register.Reg_B.all_bits);
     delay(200);
    
     Serial.print("Mode register configuration : ");
@@ -124,19 +168,21 @@ bool HMC5883L::init(void)
        -------|---------|---------|-----------------|-------------
          1B   |   27    |    HS   |         0       |    MR[1:0]
      
-     HS --> High Speed Register
-     1 = Enable High Speed I2C, 3400kHz
-     
-     MR[1:0] --> Operating Mode
+    
+    MR[1:0] --> Operating Mode
      00 = Continuous mode
      01 = Single mesurement
      10 = idle
      11 = idle
+
+    HS --> High Speed Register
+     1 = Enable High Speed I2C, 3400kHz
+     
      */
-    
-    HMC5883L_Register.Reg_MODE.Sub_Reg_MODE.HS = 0;
+
     HMC5883L_Register.Reg_MODE.Sub_Reg_MODE.MR = 0b00;
-    err += com_status( Twi.config(ADRESS_HMC5883L, HMC5883L_MODE_REGISTER, HMC5883L_Register.Reg_MODE.all_bits) );
+    HMC5883L_Register.Reg_MODE.Sub_Reg_MODE.HS = 0;
+    err += ioctl(WRITE, HMC5883L_MODE_REGISTER, HMC5883L_Register.Reg_MODE.all_bits);
     delay(200); // delay to help reading the configuration outcome on the terminal. Not absolutly needed
     
     delay(10); // minimum 6ms delay needed after configuration and before reading
@@ -202,10 +248,6 @@ void HMC5883L::calibrate(void)
 {
     int16_t Xmin, Xmax, Ymin, Ymax, Zmin, Zmax;
 
-    // Change mesurement mode to self positive bias test
-    //HMC5883L_Register.Reg_A.Sub_Reg_A.MS = 0b01;
-    //Twi.config(ADRESS_HMC5883L, HMC5883L_CONF_REG_A, HMC5883L_Register.Reg_A.all_bits);
-
     getMxyz_raw();
 
     //Initialize first values
@@ -229,14 +271,15 @@ void HMC5883L::calibrate(void)
             // DO NOTHING
             // get rid of the first values that might be really off
         }
-        if (Mxyz_raw[0] > Xmax) Xmax = Mxyz_raw[0];
-        if (Mxyz_raw[0] < Xmin) Xmin = Mxyz_raw[0];
 
-        if (Mxyz_raw[1] > Ymax) Ymax = Mxyz_raw[1];
-        if (Mxyz_raw[1] < Ymin) Ymin = Mxyz_raw[1];
+        Xmax = MAX(Xmax, Mxyz_raw[0]);
+        Xmin = MIN(Xmin, Mxyz_raw[0]);
 
-        if (Mxyz_raw[2] > Zmax) Zmax = Mxyz_raw[2];
-        if (Mxyz_raw[2] < Zmin) Zmin = Mxyz_raw[2];
+        Ymax = MAX(Ymax, Mxyz_raw[1]);
+        Ymin = MIN(Ymin, Mxyz_raw[1]);
+
+        Zmax = MAX(Zmax, Mxyz_raw[1]);
+        Zmin = MIN(Zmin, Mxyz_raw[1]);
         
     }
     
@@ -257,41 +300,45 @@ void HMC5883L::getMxyz_raw (void)
     
     uint8_t MxH, MxL, MyH, MyL, MzH, MzL;
     int16_t Mx_raw, My_raw, Mz_raw;
-    uint8_t* twi_read_value = NULL;
+    uint8_t raw_data[6];
 
-    twi_read_value = Twi.readFrom(ADRESS_HMC5883L, HMC5883L_XOUT_H, 6, twi_read_value);
-    if (twi_read_value == NULL)
+    err += ioctl(READ, HMC5883L_XOUT_H, 6, raw_data);
+    if (err != 0)
     {
-        printf("Couldn't allow memory, shuting down...");
-        exit(EXIT_FAILURE);
+        Serial.println("Data read error");
+        return;
     }
  
-    MxH = twi_read_value[0];
-    MxL = twi_read_value[1];
-    MzH = twi_read_value[2];
-    MzL = twi_read_value[3];
-    MyH = twi_read_value[4];
-    MyL = twi_read_value[5];
+    MxH = raw_data[0];
+    MxL = raw_data[1];
+    MzH = raw_data[2];
+    MzL = raw_data[3];
+    MyH = raw_data[4];
+    MyL = raw_data[5];
     
-    
+    // Serial.printf("MxH : %d MxL : %d\n", MxH, MxL);
+    // Serial.printf("MyH : %d MyL : %d\n", MyH, MyL);
+    // Serial.printf("MzH : %d MzL : %d\n", MzH, MzL);
+
     Mx_raw = (MxH << 8) + MxL;
     My_raw = (MyH << 8) + MyL;
     Mz_raw = (MzH << 8) + MzL;
 
     // conversion for 2's complement
     if (Mx_raw >= 0x8000) 
-        Mx_raw = -((65535 - Mx_raw) + 1);
+        Mxyz_raw[0] = -((65535 - Mx_raw) + 1);
     if (My_raw >= 0x8000) 
-        My_raw = -((65535 - My_raw) + 1);
+        Mxyz_raw[1] = -((65535 - My_raw) + 1);
     if (Mz_raw >= 0x8000) 
-        Mz_raw = -((65535 - Mz_raw) + 1);
+        Mxyz_raw[2] = -((65535 - Mz_raw) + 1);
     
-   
+   //Serial.printf("Mx=%.2f  My=%.2f  Mz=%.2f\n", Mxyz_raw[0], Mxyz_raw[1], Mxyz_raw[2]);
     Mxyz_raw[0] = Mx_raw;
     Mxyz_raw[1] = My_raw;
     Mxyz_raw[2] = Mz_raw;
+
+    Serial.printf(" Xraw = %d    Yraw = %d     Zraw = %d\n", Mx_raw, My_raw, Mz_raw);
     
-    free(twi_read_value);
     delay(outputRateDelay);
 }
 
@@ -309,6 +356,7 @@ void HMC5883L::getMxyz(void)
     Mxyz[0] = Mx;
     Mxyz[1] = My;
     Mxyz[2] = Mz;   
+
 }
 
 /**

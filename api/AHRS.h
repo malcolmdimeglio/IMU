@@ -11,8 +11,15 @@
 
 #define CALIBRATION_NEEDED 1
 
+
 class AHRS
 {
+private:
+    float q[4] = {1.0, 1.0, 1.0, 1.0};
+    void getPitch(void);
+    void getYaw(void);
+    void getRoll(void);
+    void computeQuaternion(void):
 
 public:
     double Yaw, Pitch, Roll;
