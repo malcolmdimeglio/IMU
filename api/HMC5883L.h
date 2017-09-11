@@ -104,8 +104,8 @@ private:
     HMC5883L_reg_conf HMC5883L_Register;
 
     int8_t ioctl(uint8_t, uint8_t, uint8_t);
-    int8_t ioctl(uint8_t, uint8_t, uint8_t, uint8_t);
-    int8_t com_status(uint8_t);
+    int8_t ioctl(uint8_t, uint8_t, uint8_t, uint8_t*);
+    int8_t com_status(int8_t);
     void getMxyz_raw (void);
     void getMagnetoScale(void);
     void getMxyz(void);

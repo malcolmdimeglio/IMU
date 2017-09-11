@@ -19,7 +19,7 @@ private:
     void getPitch(void);
     void getYaw(void);
     void getRoll(void);
-    void computeQuaternion(void):
+    void computeQuaternion(void);
 
 public:
     double Yaw, Pitch, Roll;

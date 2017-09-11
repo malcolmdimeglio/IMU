@@ -24,38 +24,33 @@
 int8_t HMC5883L::ioctl(uint8_t type, uint8_t address_reg, uint8_t size, uint8_t* data)
 {
     int8_t err;
-    uint8_t size_data;
     switch(type)
     {
         case READ:
-            size_data = sizeof(data) / sizeof (uint8_t);
-            if (size != size_data)
-            {
-                Serial.println("array size is wrong");
-                return -1;
-            }
-
-            err = Twi.readFrom(ADRESS_HMC5883L, address_reg, size, data);
+            err = (int8_t) Twi.readFrom((uint8_t)ADRESS_HMC5883L, address_reg, size, data);
             break;
         default:
             Serial.printf("Wrong ioctl type\n");
-            return -1;
+            err = -1;
             break;
     }
+    return err;
 }
 
 int8_t HMC5883L::ioctl(uint8_t type, uint8_t address_reg, uint8_t full_reg)
 {
+    int8_t err;
     switch(type)
     {
         case WRITE:
-            return com_status( Twi.config(ADRESS_HMC5883L, address_reg, full_reg) );
+            err = com_status( Twi.config((uint8_t)ADRESS_HMC5883L, address_reg, full_reg) );
             break;
         default:
             Serial.printf("Wrong ioctl type\n");
-            return -1;
+            err = -1;
             break;
     }
+    return err;
 }
 
 /** 
@@ -67,7 +62,7 @@ int8_t HMC5883L::ioctl(uint8_t type, uint8_t address_reg, uint8_t full_reg)
  *            2 = Adress not received
  *            3 = Data not received
  */
-int8_t HMC5883L::com_status(uint8_t err)
+int8_t HMC5883L::com_status(int8_t err)
 {
     if (err == 0)
     {
@@ -267,7 +262,7 @@ void HMC5883L::calibrate(void)
     {
         getMxyz_raw();
         
-        if (i<50) {
+        if (i<1000) {
             // DO NOTHING
             // get rid of the first values that might be really off
         }
@@ -287,7 +282,7 @@ void HMC5883L::calibrate(void)
     Yoff = (Ymin + Ymax)/2;
     Zoff = (Zmin + Zmax)/2;
     
-    Serial.printf("Xoff = %d \t Yoff = %d \t Zoff = %d\n", Xoff, Yoff, Zoff);
+    Serial.printf("Xoff = %f \t Yoff = %f \t Zoff = %f\n", Xoff, Yoff, Zoff);
     Serial.println("Calibration DONE\n");
     delay(1000);
 }
@@ -301,6 +296,7 @@ void HMC5883L::getMxyz_raw (void)
     uint8_t MxH, MxL, MyH, MyL, MzH, MzL;
     int16_t Mx_raw, My_raw, Mz_raw;
     uint8_t raw_data[6];
+    int8_t err = 0;
 
     err += ioctl(READ, HMC5883L_XOUT_H, 6, raw_data);
     if (err != 0)
@@ -337,7 +333,7 @@ void HMC5883L::getMxyz_raw (void)
     Mxyz_raw[1] = My_raw;
     Mxyz_raw[2] = Mz_raw;
 
-    Serial.printf(" Xraw = %d    Yraw = %d     Zraw = %d\n", Mx_raw, My_raw, Mz_raw);
+    //Serial.printf(" Xraw = %d    Yraw = %d     Zraw = %d\n", Mx_raw, My_raw, Mz_raw);
     
     delay(outputRateDelay);
 }

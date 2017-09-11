@@ -71,7 +71,7 @@ class TwoWire : public Stream
     void onReceive( void (*)(int) );
     void onRequest( void (*)(void) );
     uint8_t config(uint8_t, uint8_t, uint8_t);
-    uint8_t* readFrom(uint8_t, uint8_t, uint8_t, uint8_t*);
+    uint8_t readFrom(uint8_t, uint8_t, uint8_t, uint8_t*);
     
     
 #ifdef CORE_TEENSY

@@ -10,7 +10,6 @@
 #include "MPU6050.h"
 #include <math.h>
 
-
 /**
  *  Ioctl fucntion is overloaded.
  *  Reads or Writes depending on the given type and the amount of parameters.
@@ -20,38 +19,33 @@
 int8_t MPU6050::ioctl(uint8_t type, uint8_t address_reg, uint8_t size, uint8_t* data)
 {
     int8_t err;
-    uint8_t size_data;
     switch(type)
     {
         case READ:
-            size_data = sizeof(data) / sizeof (uint8_t);
-            if (size != size_data)
-            {
-                Serial.println("array size is wrong");
-                return -1;
-            }
-
-            err = Twi.readFrom(ADRESS_MPU6050, address_reg, size, data);
+            err = (int8_t) Twi.readFrom((uint8_t)ADRESS_MPU6050, address_reg, size, data);
             break;
         default:
             Serial.printf("Wrong ioctl type\n");
-            return -1;
+            err = -1;
             break;
     }
+    return err;
 }
 
 int8_t MPU6050::ioctl(uint8_t type, uint8_t address_reg, uint8_t full_reg)
 {
+    int8_t err;
     switch(type)
     {
         case WRITE:
-            return com_status( Twi.config(ADRESS_MPU6050, address_reg, full_reg) );
+            err = com_status( Twi.config((uint8_t)ADRESS_MPU6050, address_reg, full_reg) );
             break;
         default:
             Serial.printf("Wrong ioctl type\n");
-            return -1;
+            err = -1;
             break;
     }
+    return err;
 }
 
 /** 
@@ -63,7 +57,7 @@ int8_t MPU6050::ioctl(uint8_t type, uint8_t address_reg, uint8_t full_reg)
  *            2 = Adress not received
  *            3 = Data not received
  */
-int8_t MPU6050::com_status(uint8_t err)
+int8_t MPU6050::com_status(int8_t err)
 {
     if (err == 0)
     {

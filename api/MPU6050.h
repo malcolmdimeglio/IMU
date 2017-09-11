@@ -129,6 +129,8 @@
 #define MPU6050_FIFO_R_W             0x74
 #define MPU6050_WHO_AM_I             0x75 //Read Only
 
+#define READ    1
+#define WRITE   2
 
 typedef union
 {
@@ -307,8 +309,8 @@ private:
     MPU6050_reg_conf MPU6050_Register;
 
     int8_t ioctl(uint8_t, uint8_t, uint8_t);
-    int8_t ioctl(uint8_t, uint8_t, uint8_t, uint8_t);
-    int8_t com_status(uint8_t);
+    int8_t ioctl(uint8_t, uint8_t, uint8_t, uint8_t*);
+    int8_t com_status(int8_t);
     void getAxyz_raw(void);
     void getGxyz_raw(void);
     void getAcceleroScale(void);
